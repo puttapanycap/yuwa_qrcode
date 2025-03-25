@@ -2,12 +2,11 @@
 
 require './configs/all.php';
 
-function isTextOrURL($input)
-{
+function isTextOrURL($input) {
     // เช็คว่าเป็น URL หรือไม่
     if (filter_var($input, FILTER_VALIDATE_URL)) {
         return "URL";
-    }
+    } 
     // เช็คว่าเป็นข้อความธรรมดา (ไม่มีฟิลเตอร์เช็ค specific text)
     else {
         return "Text";
@@ -19,20 +18,22 @@ if (isset($_GET['r'])) {
     $shortCode = $_GET['r'];
 
     // ค้นหา long_url ที่ตรงกับ short_code ในฐานข้อมูล
-    $sql = "SELECT long_url FROM urls WHERE short_code = '$shortCode' ";
-    $query = $conn->query($sql);
+    $stmt = $pdo->prepare("SELECT long_url FROM urls WHERE short_code = :short_code");
+    $stmt->execute(['short_code' => $shortCode]);
+    $result = $stmt->fetch();
 
-    if ($query) {
-        $row = $query->fetch_assoc();
-        if (isTextOrURL($row['long_url']) == "URL") {
-            // ถ้าเจอ URL ให้ทำการ Redirect
-            $longUrl = $row['long_url'];
-            header("Location: " . $longUrl);
-            exit();
-        } else {
-            echo $row['long_url'];
-            exit();
-        }
+    if ($result) {
+      
+      if (isTextOrURL($result['long_url']) == "URL") {
+        // ถ้าเจอ URL ให้ทำการ Redirect
+        $longUrl = $result['long_url'];
+        header("Location: " . $longUrl);
+        exit();
+      } else {
+        echo $result['long_url'];
+        exit();
+      }
+     
     }
 }
 
@@ -141,7 +142,7 @@ if (isset($_GET['r'])) {
 
                     <div class="card rounded-3">
                         <div class="card-body d-flex flex-column align-items-center">
-                            <h3>ผลลัพธ์</h3>
+                          	<h3>ผลลัพธ์</h3>
                             <div class="mt-3" style="max-width: 300px;" id="qrcode"></div>
                             <canvas id="qrCanvas" class="d-none"></canvas>
 

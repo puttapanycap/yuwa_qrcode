@@ -11,14 +11,12 @@ function generateShortCode($length = 6) {
 
 function shortenURL($longUrl, $pdo) {
   	global $qrdomain;
-    global $conn;
     // ตรวจสอบว่า URL มีอยู่แล้วหรือไม่
+    $stmt = $pdo->prepare("SELECT short_code FROM urls WHERE long_url = :long_url");
+    $stmt->execute(['long_url' => $longUrl]);
+    $result = $stmt->fetch();
 
-    $sql = "SELECT short_code FROM urls WHERE long_url = '$longUrl' ";
-    $query = $conn->query($sql);
-
-    if ($query) {
-        $result = $query->fetch_assoc();
+    if ($result) {
         return $qrdomain. $result['short_code']; // คืน short code เดิมถ้าเคยสร้างแล้ว
     }
 
@@ -26,8 +24,8 @@ function shortenURL($longUrl, $pdo) {
     $shortCode = generateShortCode();
 
     // บันทึกลงฐานข้อมูล
-    $ins_sql = $pdo->prepare("INSERT INTO urls (long_url, short_code) VALUES (:long_url, :short_code)");
-    $stmt->execute($ins_sql);
+    $stmt = $pdo->prepare("INSERT INTO urls (long_url, short_code) VALUES (:long_url, :short_code)");
+    $stmt->execute(['long_url' => $longUrl, 'short_code' => $shortCode]);
 
     return $qrdomain. $shortCode;
 }
