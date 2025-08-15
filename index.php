@@ -165,12 +165,7 @@ if (isset($_GET['r'])) {
         </div>
     </div>
 
-    <!-- QRious.js CDN -->
-    <script src="./js/qrious.min.js"></script>
-
     <script>
-        var qr;
-
         // แสดง/ซ่อนฟิลด์อัพโหลดโลโก้
         document.getElementById('useLogo').addEventListener('change', function() {
             var logoUploadField = document.getElementById('logoUploadField');
@@ -227,18 +222,16 @@ if (isset($_GET['r'])) {
         });
 
         document.getElementById('generate').addEventListener('click', async function() {
-            const qrText = document.getElementById('qrText').value.trim(); // ตัดช่องว่างทั้งก่อนและหลัง
+            const qrText = document.getElementById('qrText').value.trim();
             const useShortUrl = document.getElementById('useShortUrl').checked;
             const shortUrlField = document.getElementById('shortUrl');
             let finalUrl = qrText;
 
-            // ตรวจสอบว่ามีการกรอกข้อความหรือ URL หรือไม่
             if (!qrText) {
                 alert('กรุณากรอกข้อความหรือ URL เพื่อสร้าง QR Code');
-                return; // หยุดการทำงานถ้าไม่มีข้อความ
+                return;
             }
 
-            // ตรวจสอบว่ามีการใช้โลโก้และเลือกไฟล์โลโก้หรือไม่
             const useLogo = document.getElementById('useLogo').checked;
             const logoFile = document.getElementById('logoFile').files[0];
             if (useLogo && !logoFile) {
@@ -246,10 +239,6 @@ if (isset($_GET['r'])) {
                 return;
             }
 
-            // รีเซ็ตสถานะก่อนสร้าง QR Code ใหม่ (ไม่รีเซ็ตโลโก้)
-            resetState(false);
-
-            // หากเลือกใช้ Short URL
             if (useShortUrl) {
                 try {
                     finalUrl = await shortenURL(qrText);
@@ -260,115 +249,54 @@ if (isset($_GET['r'])) {
                 }
             }
 
-            const canvas = document.getElementById('qrCanvas');
-            const ctx = canvas.getContext('2d');
-
-            // เคลียร์แคนวาสก่อนเริ่มวาด QR Code และโลโก้ใหม่
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // สร้าง QR Code บนแคนวาส
-            if (!qr) {
-                qr = new QRious({
-                    element: canvas,
-                    value: finalUrl,
-                    size: 256
-                });
-            } else {
-                qr.set({
-                    value: finalUrl,
-                });
-            }
-
-            // วาด QR Code ลงบนแคนวาส
-            ctx.drawImage(qr.canvas, 0, 0);
-
-            // หากใช้โลโก้ ให้โหลดโลโก้แล้ววาดทับ QR Code
+            const formData = new FormData();
+            formData.append('data', finalUrl);
             if (useLogo && logoFile) {
-                const img = new Image();
-                img.onload = function() {
-                    // กำหนดขนาดโลโก้ให้ไม่เกิน 25% ของขนาด QR Code
-                    const logoMaxSize = canvas.width * 0.18;
-                    const logoSize = logoMaxSize; // กำหนดเป็นสี่เหลี่ยมจัตุรัสเสมอ
-
-                    const logoX = (canvas.width - logoSize) / 2;
-                    const logoY = (canvas.height - logoSize) / 2;
-
-                    // วาดพื้นหลังสีขาวแบบสี่เหลี่ยมจัตุรัสขอบมน
-                    const cornerRadius = 10;
-                    ctx.fillStyle = 'white';
-                    ctx.beginPath();
-                    ctx.moveTo(logoX + cornerRadius, logoY);
-                    ctx.arcTo(logoX + logoSize, logoY, logoX + logoSize, logoY + logoSize, cornerRadius);
-                    ctx.arcTo(logoX + logoSize, logoY + logoSize, logoX, logoY + logoSize, cornerRadius);
-                    ctx.arcTo(logoX, logoY + logoSize, logoX, logoY, cornerRadius);
-                    ctx.arcTo(logoX, logoY, logoX + logoSize, logoY, cornerRadius);
-                    ctx.closePath();
-                    ctx.fill();
-
-                    // วางโลโก้ให้อยู่กึ่งกลางบนพื้นหลังสีขาว
-                    const logoAspectRatio = img.width / img.height;
-                    let logoWidth, logoHeight;
-                    if (logoAspectRatio > 1) {
-                        // โลโก้เป็นแนวนอน
-                        logoWidth = logoSize;
-                        logoHeight = logoSize / logoAspectRatio;
-                    } else {
-                        // โลโก้เป็นแนวตั้งหรือสี่เหลี่ยม
-                        logoWidth = logoSize * logoAspectRatio;
-                        logoHeight = logoSize;
-                    }
-
-                    const centeredLogoX = (canvas.width - logoWidth) / 2;
-                    const centeredLogoY = (canvas.height - logoHeight) / 2;
-
-                    // วางโลโก้บนพื้นหลังที่วาดไว้
-                    ctx.drawImage(img, centeredLogoX, centeredLogoY, logoWidth, logoHeight);
-
-                    // แสดง QR Code พร้อมโลโก้หลังจากวาดเสร็จ
-                    document.getElementById('qrcode').innerHTML = `<img src="${canvas.toDataURL()}" alt="QR Code">`;
-                };
-
-                img.src = URL.createObjectURL(logoFile);
-            } else {
-                // กรณีที่ไม่มีการใช้โลโก้ ให้แสดง QR Code ทันที
-                document.getElementById('qrcode').innerHTML = `<img src="${qr.toDataURL()}" alt="QR Code">`;
+                formData.append('logo', logoFile);
             }
 
-            // แสดงปุ่มดาวน์โหลดหลังจากวาดเสร็จ
-            document.getElementById('download-buttons').classList.remove("d-none");
+            fetch('./actions/generate_qr.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const qrCodeUrl = URL.createObjectURL(blob);
+                    document.getElementById('qrcode').innerHTML = `<img src="${qrCodeUrl}" alt="QR Code">`;
+                    document.getElementById('download-buttons').classList.remove("d-none");
+
+                    // Store blob for downloads
+                    window.qrBlob = blob;
+                })
+                .catch(error => {
+                    console.error('Error generating QR code:', error);
+                    alert('Error generating QR code. Please check the console for details.');
+                });
         });
 
-        // ฟังก์ชันรีเซ็ตสถานะและเคลียร์ค่าตั้งต้น
-        function resetState(resetLogo = true) {
-            const canvas = document.getElementById('qrCanvas');
-            const ctx = canvas.getContext('2d');
-
-            // เคลียร์แคนวาส
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            if (resetLogo) {
-                // เคลียร์ฟิลด์อัพโหลดโลโก้ (ถ้า resetLogo เป็น true เท่านั้น)
-                document.getElementById('logoPreview').style.display = 'none';
-                document.getElementById('logoFile').value = '';
+        function downloadQrCode(format) {
+            if (!window.qrBlob) {
+                alert("Please generate a QR code first!");
+                return;
             }
-
-            // เคลียร์ฟิลด์ URL
-            // document.getElementById('qrText').value = '';
-            // document.getElementById('shortUrl').value = '';
-
-            // ซ่อนปุ่มดาวน์โหลด
-            document.getElementById('download-buttons').classList.add('d-none');
-
-            // รีเซ็ตค่าของ QRious instance (ถ้ามี)
-            if (qr) {
-                qr.set({
-                    value: ''
-                });
-            }
-
-            // ลบภาพ QR Code จาก DOM
-            document.getElementById('qrcode').innerHTML = '';
+            const url = URL.createObjectURL(window.qrBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `qrcode.${format}`;
+            link.click();
+            URL.revokeObjectURL(url);
         }
+
+        document.getElementById('download-jpeg').addEventListener('click', () => downloadQrCode('jpeg'));
+        document.getElementById('download-png').addEventListener('click', () => downloadQrCode('png'));
+        document.getElementById('download-svg').addEventListener('click', () => {
+            alert('SVG download is not supported with this generation method.');
+        });
 
         // ฟังก์ชันคัดลอก Short URL ไปยัง Clipboard
         document.getElementById('copyShortUrl').addEventListener('click', function() {
@@ -376,65 +304,6 @@ if (isset($_GET['r'])) {
             shortUrlField.select();
             document.execCommand('copy');
             alert('Copied to clipboard: ' + shortUrlField.value);
-        });
-    </script>
-
-    <script>
-        // ดาวน์โหลด SVG
-        document.getElementById('download-svg').addEventListener('click', function() {
-            if (!qr) {
-                alert("Please generate a QR code first!");
-                return;
-            }
-
-            var svg = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-                    <image href="${qr.toDataURL()}" height="256" width="256"/>
-                </svg>
-            `;
-            var svgBlob = new Blob([svg], {
-                type: 'image/svg+xml;charset=utf-8'
-            });
-            var url = URL.createObjectURL(svgBlob);
-
-            var link = document.createElement('a');
-            link.href = url;
-            link.download = 'qrcode.svg';
-            link.click();
-
-            URL.revokeObjectURL(url);
-        });
-
-        // ดาวน์โหลด PNG
-        document.getElementById('download-png').addEventListener('click', function() {
-            if (!qr) {
-                alert("Please generate a QR code first!");
-                return;
-            }
-
-            var canvas = document.getElementById('qrCanvas');
-            var pngUrl = canvas.toDataURL("image/png");
-
-            var link = document.createElement('a');
-            link.href = pngUrl;
-            link.download = 'qrcode.png';
-            link.click();
-        });
-
-        // ดาวน์โหลด JPEG
-        document.getElementById('download-jpeg').addEventListener('click', function() {
-            if (!qr) {
-                alert("Please generate a QR code first!");
-                return;
-            }
-
-            var canvas = document.getElementById('qrCanvas');
-            var jpegUrl = canvas.toDataURL("image/jpeg");
-
-            var link = document.createElement('a');
-            link.href = jpegUrl;
-            link.download = 'qrcode.jpeg';
-            link.click();
         });
     </script>
 </body>

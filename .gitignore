@@ -1,2 +1,4 @@
 
 /configs
+/vendor
+composer.lock
