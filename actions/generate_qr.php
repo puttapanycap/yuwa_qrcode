@@ -47,7 +47,7 @@ try {
         // $logo = $_FILES['logo']['tmp_name'];
         $logo = new Logo(
             path: $_FILES['logo']['tmp_name'],
-            resizeToWidth: 50,
+            resizeToWidth: 55,
             punchoutBackground: true
         );
     }
